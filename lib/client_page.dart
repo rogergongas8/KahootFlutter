@@ -151,23 +151,65 @@ class ClientGameScreen extends StatelessWidget {
              answeredIndex = (snapshot.data!.snapshot.value as Map)['answerIndex'] as int;
           }
 
+          if (status == 'scoreboard') {
+             return Container(
+               color: Colors.deepPurple,
+               alignment: Alignment.center,
+               padding: const EdgeInsets.all(20),
+               child: const Column(
+                 mainAxisAlignment: MainAxisAlignment.center,
+                 children: [
+                   Icon(Icons.emoji_events, color: Colors.yellow, size: 100),
+                   SizedBox(height: 20),
+                   Text("¡Mira la pizarra!", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                   SizedBox(height: 10),
+                   Text("El profesor está mostrando el Podium", style: TextStyle(color: Colors.white70, fontSize: 18), textAlign: TextAlign.center),
+                 ],
+               ),
+             );
+          }
+
           if (status == 'finished') {
              // El profesor acabó la pregunta (tiempo=0), verificamos si acertaste
              bool isCorrect = answeredIndex == questionData['correctIndex'];
-             return Container(
-               color: isCorrect ? Colors.green : Colors.red,
-               alignment: Alignment.center,
-               child: Column(
-                 mainAxisAlignment: MainAxisAlignment.center,
-                 children: [
-                   Icon(isCorrect ? Icons.check_circle : Icons.cancel, color: Colors.white, size: 100),
-                   const SizedBox(height: 20),
-                   Text(
-                     isCorrect ? "¡CORRECTO!" : "INCORRECTO",
-                     style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
+             
+             // Leemos el total de puntos y los ganados en esta ronda
+             print("Buscando player stats");
+             return StreamBuilder(
+               stream: FirebaseDatabase.instance.ref().child('partidas').child(gameCode).child('players').child(playerName).onValue,
+               builder: (context, playerSnapshot) {
+                 int earned = 0;
+                 int total = 0;
+                 if (playerSnapshot.hasData && playerSnapshot.data!.snapshot.value != null) {
+                   Map pData = playerSnapshot.data!.snapshot.value as Map;
+                   earned = pData['lastRoundPoints'] ?? 0;
+                   total = pData['score'] ?? 0;
+                 }
+
+                 return Container(
+                   color: isCorrect ? Colors.green : Colors.red,
+                   alignment: Alignment.center,
+                   child: Column(
+                     mainAxisAlignment: MainAxisAlignment.center,
+                     children: [
+                       Icon(isCorrect ? Icons.check_circle : Icons.cancel, color: Colors.white, size: 100),
+                       const SizedBox(height: 20),
+                       Text(
+                         isCorrect ? "¡CORRECTO!" : "INCORRECTO",
+                         style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
+                       ),
+                       const SizedBox(height: 20),
+                       Container(
+                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                         decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(20)),
+                         child: Text(isCorrect ? "+$earned pts" : "+0 pts", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                       ),
+                       const SizedBox(height: 10),
+                       Text("Puntuación Total: $total", style: const TextStyle(color: Colors.white, fontSize: 20)),
+                     ],
                    ),
-                 ],
-               ),
+                 );
+               }
              );
           }
 
