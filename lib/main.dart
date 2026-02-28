@@ -23,7 +23,7 @@ class MainApp extends StatelessWidget {
   }
 }
 
-// 2. Esta clase es la pantalla real (ahora sí tiene acceso al navegador)
+// 2. Esta clase es la pantalla real
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -37,7 +37,6 @@ class HomePage extends StatelessWidget {
           children: [
             ElevatedButton(
               onPressed: () {
-                // Ahora esto SÍ funciona porque estamos "debajo" del MaterialApp
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ServerPage()),

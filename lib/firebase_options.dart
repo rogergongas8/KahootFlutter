@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -51,6 +48,17 @@ class DefaultFirebaseOptions {
         );
     }
   }
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDKp2C6GAQ15GTGxT00hqM6Pn4YW7P78WE',
+    appId: '1:94074091762:web:721627a62c3f343a14b86b',
+    messagingSenderId: '94074091762',
+    projectId: 'kahoot-rgg-roger-app',
+    authDomain: 'kahoot-rgg-roger-app.firebaseapp.com',
+    databaseURL: 'https://kahoot-rgg-roger-app-default-rtdb.europe-west1.firebasedatabase.app',
+    storageBucket: 'kahoot-rgg-roger-app.firebasestorage.app',
+    measurementId: 'G-XXXXXXXXXX',
+  );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCG5r2iC5ZEJYAiN5l1jkEkc6zO_Hf6c8I',
