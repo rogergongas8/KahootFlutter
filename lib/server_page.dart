@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:confetti/confetti.dart';
 import 'dart:math';
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
@@ -29,6 +31,9 @@ class _ServerPageState extends State<ServerPage> {
   StreamSubscription? _answersSubscription;
   bool _questionEnded = false;
 
+  late ConfettiController _confettiController;
+  bool _confettiPlayed = false;
+
   // Preguntas de prueba
   final List<Question> _questions = [
     Question("¿Cuál es la capital de Francia?", ["Madrid", "París", "Roma", "Berlín"], 1),
@@ -39,6 +44,7 @@ class _ServerPageState extends State<ServerPage> {
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _createGame();
   }
 
@@ -46,6 +52,7 @@ class _ServerPageState extends State<ServerPage> {
   void dispose() {
     _timer?.cancel();
     _answersSubscription?.cancel();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -79,6 +86,7 @@ class _ServerPageState extends State<ServerPage> {
 
   void _startQuestion() async {
     _questionEnded = false;
+    _confettiPlayed = false; // Reset confederate flag for next run if needed
     setState(() {
       _timeLeft = 20;
     });
@@ -129,6 +137,11 @@ class _ServerPageState extends State<ServerPage> {
         if (answersCount >= totalPlayers && totalPlayers > 0) {
            _timer?.cancel();
            _answersSubscription?.cancel();
+           if (mounted) {
+             setState(() {
+               _timeLeft = 0;
+             });
+           }
            _endQuestion();
         }
       }
@@ -138,9 +151,11 @@ class _ServerPageState extends State<ServerPage> {
   void _skipQuestion() {
     _timer?.cancel();
     _answersSubscription?.cancel();
-    setState(() {
-      _timeLeft = 0;
-    });
+    if (mounted) {
+      setState(() {
+        _timeLeft = 0;
+      });
+    }
     _endQuestion();
   }
 
@@ -238,53 +253,124 @@ class _ServerPageState extends State<ServerPage> {
 
   Widget _buildWaitingRoom() {
     return Scaffold(
-      appBar: AppBar(title: const Text("Servidor - Sala de espera")),
+      backgroundColor: const Color(0xFF46178f), // Kahoot Purple 
+      appBar: AppBar(
+        title: Text("Pin de la sala: $gameCode", style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
       body: Column(
         children: [
-          const SizedBox(height: 30),
-          const Text("CÓDIGO DE SALA:", style: TextStyle(fontSize: 20)),
+          const SizedBox(height: 40),
           Text(
-            gameCode,
-            style: const TextStyle(fontSize: 50, fontWeight: FontWeight.bold, color: Colors.green),
+            "Únete en www.kahoot.it\no con la app de Kahoot!",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.montserrat(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 20),
-          const Divider(),
-          const Text("JUGADORES CONECTADOS:", style: TextStyle(fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: const [BoxShadow(color: Colors.black26, offset: Offset(0, 4), blurRadius: 4)],
+            ),
+            child: Text(
+              gameCode,
+              style: GoogleFonts.montserrat(
+                fontSize: 64,
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
+                letterSpacing: 8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
           Expanded(
-            child: gameCode == "Generando..."
-                ? const SizedBox()
-                : StreamBuilder(
-                    stream: _dbRef.child('partidas').child(gameCode).child('players').onValue,
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-                        return const Center(child: Text("Esperando alumnos..."));
-                      }
-                      Map<dynamic, dynamic> playersMap = snapshot.data!.snapshot.value as Map;
-                      List<dynamic> playersList = playersMap.values.toList();
-                      return ListView.builder(
-                        itemCount: playersList.length,
-                        itemBuilder: (context, index) {
-                          return ListTile(
-                            leading: const Icon(Icons.person),
-                            title: Text(playersList[index]['name'] ?? 'Incógnito'),
-                            trailing: Text("${playersList[index]['score']} pts"),
+            child: Container(
+              width: double.infinity,
+              color: Colors.white.withOpacity(0.1),
+              child: gameCode == "Generando..."
+                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                  : StreamBuilder(
+                      stream: _dbRef.child('partidas').child(gameCode).child('players').onValue,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+                          return Center(
+                            child: Text(
+                              "Esperando jugadores...",
+                              style: GoogleFonts.montserrat(fontSize: 24, color: Colors.white54, fontWeight: FontWeight.bold),
+                            ),
                           );
-                        },
-                      );
-                    },
-                  ),
+                        }
+                        Map<dynamic, dynamic> playersMap = snapshot.data!.snapshot.value as Map;
+                        List<dynamic> playersList = playersMap.values.toList();
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(15.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(20)),
+                                    child: Text(
+                                      "${playersList.length} Jugadores",
+                                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: GridView.builder(
+                                padding: const EdgeInsets.all(20),
+                                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 150,
+                                  childAspectRatio: 3,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                ),
+                                itemCount: playersList.length,
+                                itemBuilder: (context, index) {
+                                  return Container(
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: const [BoxShadow(color: Colors.black26, offset: Offset(0, 2), blurRadius: 2)],
+                                    ),
+                                    child: Text(
+                                      playersList[index]['name'] ?? 'Incógnito',
+                                      style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(20.0),
-            child: ElevatedButton.icon(
+            child: ElevatedButton(
               onPressed: _startGame,
-              icon: const Icon(Icons.play_arrow),
-              label: const Text("EMPEZAR PARTIDA"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: const Color(0xFF1368ce), // True Blue
                 foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
+                minimumSize: const Size(double.infinity, 60),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
+              child: Text("Empezar", style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -294,62 +380,133 @@ class _ServerPageState extends State<ServerPage> {
 
   Widget _buildGameUI() {
     Question q = _questions[_currentQuestionIndex];
-    final colors = [Colors.red, Colors.blue, Colors.orange, Colors.green];
+    // Kahoot Authentic Colors
+    final List<Color> kahootColors = [
+      const Color(0xFFe21b3c), // Red
+      const Color(0xFF1368ce), // Blue
+      const Color(0xFFd89e00), // Yellow
+      const Color(0xFF26890c), // Green
+    ];
+
+    // Kahoot Dark Shadows for 3D effect
+    final List<Color> darkColors = [
+      const Color(0xFFb0102b), // Dark Red
+      const Color(0xFF0a4ba3), // Dark Blue
+      const Color(0xFFa67900), // Dark Yellow
+      const Color(0xFF196105), // Dark Green
+    ];
+
+    // Kahoot Authentic Icons
+    final List<IconData> kahootIcons = [
+      Icons.change_history, // Triangle (Red)
+      Icons.square_outlined, // Fake Diamond - rotated square (Blue)
+      Icons.circle, // Circle (Yellow)
+      Icons.square, // Square (Green)
+    ];
 
     return Scaffold(
-      appBar: AppBar(title: Text("PIN: $gameCode"), centerTitle: true),
+      backgroundColor: const Color(0xFFf2f2f2), // Light gray background
       body: Column(
         children: [
+          // Header with question and pin
           Container(
-            padding: const EdgeInsets.all(20),
+            color: Colors.white,
+            padding: const EdgeInsets.only(top: 40, bottom: 20, left: 20, right: 20),
             alignment: Alignment.center,
-            child: Text(
-              q.text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("PIN: $gameCode", style: GoogleFonts.montserrat(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
+                if (_timeLeft > 0)
+                  ElevatedButton.icon(
+                    onPressed: _skipQuestion,
+                    icon: const Icon(Icons.skip_next, size: 20),
+                    label: const Text("Omitir"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black12,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                    ),
+                  ),
+              ],
             ),
           ),
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: Colors.purple,
-            child: Text(
-              "$_timeLeft",
-              style: const TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 20),
-          StreamBuilder(
-            stream: _dbRef.child('partidas').child(gameCode).child('current_answers').onValue,
-            builder: (context, snapshot) {
-              int count = 0;
-              if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                count = (snapshot.data!.snapshot.value as Map).length;
-              }
-              return Text("Respuestas: $count", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold));
-            }
-          ),
-          const Spacer(),
+          
           Expanded(
+            flex: 2,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Text(
+                  q.text,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.montserrat(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.black),
+                ),
+              ),
+            ),
+          ),
+          
+          // Center Info (Timer and Answers)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 30),
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundColor: const Color(0xFF46178f),
+                  child: Text(
+                    "$_timeLeft",
+                    style: GoogleFonts.montserrat(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 30),
+                child: StreamBuilder(
+                  stream: _dbRef.child('partidas').child(gameCode).child('current_answers').onValue,
+                  builder: (context, snapshot) {
+                    int count = 0;
+                    if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+                      count = (snapshot.data!.snapshot.value as Map).length;
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text("$count", style: GoogleFonts.montserrat(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.black)),
+                        Text("respuestas", style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
+                      ],
+                    );
+                  }
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 30),
+
+          Expanded(
+            flex: 3,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
               child: Column(
                 children: [
                   Expanded(
                     child: Row(
                       children: [
-                        Expanded(child: _buildTeacherOption(0, colors[0], q)),
-                        const SizedBox(width: 15),
-                        Expanded(child: _buildTeacherOption(1, colors[1], q)),
+                        Expanded(child: _buildTeacherOption(0, kahootColors[0], darkColors[0], kahootIcons[0], q)),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildTeacherOption(1, kahootColors[1], darkColors[1], kahootIcons[1], q)),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: Row(
                       children: [
-                        Expanded(child: _buildTeacherOption(2, colors[2], q)),
-                        const SizedBox(width: 15),
-                        Expanded(child: _buildTeacherOption(3, colors[3], q)),
+                        Expanded(child: _buildTeacherOption(2, kahootColors[2], darkColors[2], kahootIcons[2], q)),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildTeacherOption(3, kahootColors[3], darkColors[3], kahootIcons[3], q)),
                       ],
                     ),
                   ),
@@ -362,21 +519,12 @@ class _ServerPageState extends State<ServerPage> {
               padding: const EdgeInsets.all(20.0),
               child: ElevatedButton(
                 onPressed: _showScoreboard,
-                style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                child: const Text("Ver Podium", style: TextStyle(fontSize: 20)),
-              ),
-            ),
-          if (_timeLeft > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-              child: ElevatedButton.icon(
-                onPressed: _skipQuestion,
-                icon: const Icon(Icons.skip_next),
-                label: const Text("Omitir"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: const Color(0xFF1368ce),
                   foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 60),
                 ),
+                child: Text("Siguiente", style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.bold)),
               ),
             ),
         ],
@@ -384,103 +532,155 @@ class _ServerPageState extends State<ServerPage> {
     );
   }
 
-  Widget _buildTeacherOption(int index, Color color, Question q) {
+  Widget _buildTeacherOption(int index, Color color, Color shadowColor, IconData shape, Question q) {
     bool showCorrect = _timeLeft == 0 && index == q.correctIndex;
     bool showWrong = _timeLeft == 0 && index != q.correctIndex;
     
+    // Si queremos el diamante inclinamos el icono de cuadrado
+    Widget iconWidget = Icon(shape, size: 40, color: Colors.white);
+    if (index == 1) { // Blue/Diamond
+      iconWidget = Transform.rotate(angle: pi / 4, child: const Icon(Icons.square, size: 30, color: Colors.white));
+    }
+    
     return Container(
       decoration: BoxDecoration(
-        color: showWrong ? Colors.grey : color,
-        borderRadius: BorderRadius.circular(16), // Match radio con client_page
-        boxShadow: [
+        color: showWrong ? Colors.grey[300] : color,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: showWrong ? [] : [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 5), // Match sombra con client_page
+            color: shadowColor,
+            spreadRadius: 0,
+            blurRadius: 0,
+            offset: const Offset(0, 6), // Premium bottom distinct shadow
           )
         ],
-        border: showCorrect ? Border.all(color: Colors.white, width: 8) : null,
       ),
-      alignment: Alignment.center,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          q.options[index],
-          style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          showWrong && _timeLeft == 0 
+              ? const SizedBox(width: 40) // Placeholder
+              : iconWidget,
+          const SizedBox(width: 15),
+          Expanded(
+            child: Text(
+              q.options[index],
+              style: GoogleFonts.montserrat(
+                color: showWrong ? Colors.black38 : Colors.white, 
+                fontSize: 28, 
+                fontWeight: FontWeight.bold
+              ),
+            ),
+          ),
+          if (showCorrect)
+            const Icon(Icons.check_circle, color: Colors.white, size: 40),
+        ],
       ),
     );
   }
 
   Widget _buildScoreboardUI() {
     return Scaffold(
-      backgroundColor: Colors.deepPurple,
-      appBar: AppBar(title: const Text("Ranking Top 5"), backgroundColor: Colors.transparent, elevation: 0),
-      body: StreamBuilder(
-        stream: _dbRef.child('partidas').child(gameCode).child('players').onValue,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-            return const Center(child: CircularProgressIndicator(color: Colors.white));
-          }
+      backgroundColor: const Color(0xFF46178f),
+      appBar: AppBar(title: Text("Podium", style: GoogleFonts.montserrat(fontWeight: FontWeight.bold)), backgroundColor: Colors.transparent, elevation: 0),
+      body: Stack(
+        children: [
+          StreamBuilder(
+            stream: _dbRef.child('partidas').child(gameCode).child('players').onValue,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+                return const Center(child: CircularProgressIndicator(color: Colors.white));
+              }
 
-          Map playersMap = snapshot.data!.snapshot.value as Map;
-          List playersList = playersMap.values.toList();
-          
-          // Ordenar por score de mayor a menor
-          playersList.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
-          
-          // Quedarnos con el Top 5
-          int topCount = playersList.length > 5 ? 5 : playersList.length;
-          List topPlayers = playersList.sublist(0, topCount);
+              Map playersMap = snapshot.data!.snapshot.value as Map;
+              List playersList = playersMap.values.toList();
+              
+              playersList.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+              int topCount = playersList.length > 5 ? 5 : playersList.length;
+              List topPlayers = playersList.sublist(0, topCount);
 
-          return Column(
-            children: [
-              const SizedBox(height: 20),
-              const Icon(Icons.leaderboard, size: 80, color: Colors.yellow),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  itemCount: topPlayers.length,
-                  itemBuilder: (context, index) {
-                    return Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.orange,
-                          child: Text("${index + 1}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        title: Text(topPlayers[index]['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                        trailing: Text("${topPlayers[index]['score']} pts", style: const TextStyle(fontSize: 20, color: Colors.purple, fontWeight: FontWeight.bold)),
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    Text("Resultados Finales", style: GoogleFonts.montserrat(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 30),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: topPlayers.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: const [BoxShadow(color: Colors.black26, offset: Offset(0, 4), blurRadius: 4)],
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              leading: Text(
+                                "${index + 1}", 
+                                style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.w900, color: const Color(0xFF46178f))
+                              ),
+                              title: Text(
+                                topPlayers[index]['name'], 
+                                style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)
+                              ),
+                              trailing: Text(
+                                "${topPlayers[index]['score']}", 
+                                style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-              ),
-              if (_currentQuestionIndex < _questions.length - 1)
-                Padding(
-                  padding: const EdgeInsets.all(30.0),
-                  child: ElevatedButton(
-                    onPressed: _nextQuestion,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.deepPurple,
-                      minimumSize: const Size(double.infinity, 60),
                     ),
-                    child: const Text("Siguiente Pregunta", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  ),
-                )
-              else
-                const Padding(
-                  padding: EdgeInsets.all(30.0),
-                  child: Text("¡Fin del juego! 🎉", style: TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold)),
+                    if (_currentQuestionIndex < _questions.length - 1)
+                      ElevatedButton(
+                        onPressed: _nextQuestion,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1368ce),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 60),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        ),
+                        child: Text("Siguiente Pregunta", style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.bold)),
+                      )
+                    else
+                      Text("¡Fin del juego! 🎉", style: GoogleFonts.montserrat(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
                 ),
-            ],
-          );
-        }
+              );
+            }
+          ),
+          
+          // Confetti Cannons
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: -pi / 4, // Up and Right
+              maxBlastForce: 50,
+              minBlastForce: 20,
+              emissionFrequency: 0.05,
+              numberOfParticles: 20,
+              gravity: 0.1,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: -3 * pi / 4, // Up and Left
+              maxBlastForce: 50,
+              minBlastForce: 20,
+              emissionFrequency: 0.05,
+              numberOfParticles: 20,
+              gravity: 0.1,
+            ),
+          ),
+        ],
       ),
     );
   }
