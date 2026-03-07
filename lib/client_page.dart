@@ -25,13 +25,12 @@ class _ClientPageState extends State<ClientPage> {
     final snapshot = await _dbRef.child('partidas').child(code).get();
 
     if (snapshot.exists) {
-      // 1. Guardamos al jugador en Firebase apuntando a su nombre
+      // Guardamos al jugador en Firebase
       await _dbRef.child('partidas').child(code).child('players').child(name).set({
         'name': name,
         'score': 0,
       });
 
-      // 2. IMPORTANTE: Vamos a la Sala Wrapper
       if (mounted) {
         Navigator.push(
           context,
@@ -50,67 +49,84 @@ class _ClientPageState extends State<ClientPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF46178f), // Kahoot Purple
       appBar: AppBar(
-        title: Text("Unirse", style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: Colors.black)),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [BoxShadow(color: Colors.black26, offset: Offset(0, 4), blurRadius: 4)],
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: const [BoxShadow(color: Colors.black26, offset: Offset(0, 4), blurRadius: 4)],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Kahoot!", 
+                  style: GoogleFonts.montserrat(fontSize: 32, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)
                 ),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _codeController,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.bold),
-                      decoration: InputDecoration(
-                        hintText: "PIN del juego",
-                        hintStyle: GoogleFonts.montserrat(color: Colors.black38),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                      ),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: "PIN del juego",
+                    hintStyle: GoogleFonts.montserrat(color: Colors.grey[400], fontWeight: FontWeight.bold),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFcccccc), width: 2.5),
                     ),
-                    const SizedBox(height: 15),
-                    TextField(
-                      controller: _nameController,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.bold),
-                      decoration: InputDecoration(
-                        hintText: "Nombre",
-                        hintStyle: GoogleFonts.montserrat(color: Colors.black38),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                      ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF333333), width: 2.5),
                     ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _joinGame,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF333333), // Dark gray Kahoot enter button
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      ),
-                      child: Text("Ingresar", style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _nameController,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: "Nombre",
+                    hintStyle: GoogleFonts.montserrat(color: Colors.grey[400], fontWeight: FontWeight.bold),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFcccccc), width: 2.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF333333), width: 2.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _joinGame,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF333333), // Botón negro característico
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    elevation: 0,
+                  ),
+                  child: Text("Ingresar", style: GoogleFonts.montserrat(fontSize: 22, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -136,7 +152,7 @@ class RoomWrapper extends StatelessWidget {
           return ClientGameScreen(gameCode: gameCode, playerName: playerName, questionData: qData);
         }
 
-        // Diseño original de Sala de Espera
+        // Diseño original de Sala de Espera verde
         return Scaffold(
           backgroundColor: const Color(0xFF26890c), // Grass Green for joined
           body: Center(
@@ -145,7 +161,7 @@ class RoomWrapper extends StatelessWidget {
               children: [
                 Text("¡Estás dentro!", style: GoogleFonts.montserrat(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 20),
-                Text("¿Ves tu nombre en la pantalla?", style: GoogleFonts.montserrat(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                Text("¿Ves tu nombre en la pantalla?", style: GoogleFonts.montserrat(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center,),
                 const SizedBox(height: 60),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
@@ -166,7 +182,6 @@ class RoomWrapper extends StatelessWidget {
 }
 
 // --- NUEVA PANTALLA: Botones de Colores del Alumno ---
-
 class ClientGameScreen extends StatefulWidget {
   final String gameCode;
   final String playerName;
@@ -195,7 +210,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   }
 
   void _submitAnswer(int index) async {
-    // Solo puede responder si el estado es 'showing' y el tiempo corre
     if (widget.questionData['status'] == 'showing') {
       await FirebaseDatabase.instance
           .ref()
@@ -205,7 +219,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
           .child(widget.playerName)
           .set({
         'answerIndex': index,
-        'answeredAt': ServerValue.timestamp, // Guarda la hora exacta del clic para la puntuación
+        'answeredAt': ServerValue.timestamp,
       });
     }
   }
@@ -213,28 +227,25 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   @override
   Widget build(BuildContext context) {
     String status = widget.questionData['status'];
-    // Kahoot Authentic Colors
     final List<Color> kahootColors = [
-      const Color(0xFFe21b3c), // Red
-      const Color(0xFF1368ce), // Blue
-      const Color(0xFFd89e00), // Yellow
-      const Color(0xFF26890c), // Green
+      const Color(0xFFe21b3c),
+      const Color(0xFF1368ce),
+      const Color(0xFFd89e00),
+      const Color(0xFF26890c),
     ];
 
-    // Kahoot Dark Shadows for 3D effect
     final List<Color> darkColors = [
-      const Color(0xFFb0102b), // Dark Red
-      const Color(0xFF0a4ba3), // Dark Blue
-      const Color(0xFFa67900), // Dark Yellow
-      const Color(0xFF196105), // Dark Green
+      const Color(0xFFb0102b),
+      const Color(0xFF0a4ba3),
+      const Color(0xFFa67900),
+      const Color(0xFF196105),
     ];
 
-    // Kahoot Authentic Icons
     final List<IconData> kahootIcons = [
-      Icons.change_history, // Triangle (Red)
-      Icons.square_outlined, // Fake Diamond (Blue)
-      Icons.circle, // Circle (Yellow)
-      Icons.square, // Square (Green)
+      Icons.change_history,
+      Icons.square_outlined,
+      Icons.circle,
+      Icons.square,
     ];
 
     return Scaffold(
@@ -250,7 +261,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         automaticallyImplyLeading: false,
       ),
       body: StreamBuilder(
-        // Escuchamos tu propia respuesta actual para bloquear la pantalla si ya respondiste
         stream: FirebaseDatabase.instance.ref().child('partidas').child(widget.gameCode).child('current_answers').child(widget.playerName).onValue,
         builder: (context, snapshot) {
           bool hasAnswered = snapshot.hasData && snapshot.data!.snapshot.value != null;
@@ -262,10 +272,10 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
           Widget currentScreen;
 
           if (status == 'scoreboard') {
-             _confettiPlayed = false; // Reset for next round
+             _confettiPlayed = false;
              currentScreen = Container(
                key: const ValueKey('scoreboard'),
-               color: const Color(0xFF1368ce), // True Blue
+               color: const Color(0xFF1368ce),
                alignment: Alignment.center,
                padding: const EdgeInsets.all(20),
                child: Column(
@@ -284,7 +294,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
                ),
              );
           } else if (status == 'finished') {
-             // El profesor acabó la pregunta (tiempo=0), verificamos si acertaste
              bool isCorrect = answeredIndex == widget.questionData['correctIndex'];
              
              if (isCorrect && !_confettiPlayed) {
@@ -292,7 +301,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
                _confettiController.play();
              }
 
-             // Leemos el total de puntos y los ganados en esta ronda
              currentScreen = StreamBuilder(
                key: const ValueKey('finished'),
                stream: FirebaseDatabase.instance.ref().child('partidas').child(widget.gameCode).child('players').child(widget.playerName).onValue,
@@ -359,7 +367,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
           } else if (hasAnswered) {
              currentScreen = Container(
                key: const ValueKey('waiting_others'),
-               color: const Color(0xFFd89e00), // Kahoot Yellow
+               color: const Color(0xFFd89e00),
                alignment: Alignment.center,
                child: Text(
                  "¿Genio o golpe de suerte?\nEsperando a los demás...", 
@@ -473,7 +481,7 @@ class _BouncyAnswerButtonState extends State<BouncyAnswerButton> with SingleTick
   @override
   Widget build(BuildContext context) {
     Widget iconWidget = Icon(widget.shape, size: 80, color: Colors.white);
-    if (widget.index == 1) { // Blue/Diamond
+    if (widget.index == 1) { 
       iconWidget = Transform.rotate(angle: pi / 4, child: const Icon(Icons.square, size: 60, color: Colors.white));
     }
 

@@ -21,10 +21,9 @@ class ServerPage extends StatefulWidget {
 }
 
 class _ServerPageState extends State<ServerPage> {
-  final TextEditingController _gameCodeController = TextEditingController();
-  String? gameCode;
+  String gameCode = 'Generando...';
   bool isGameReady = false;
-  bool gameStarted = false; // Added from upstream
+  bool gameStarted = false; 
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
   int _currentQuestionIndex = 0;
@@ -36,8 +35,11 @@ class _ServerPageState extends State<ServerPage> {
   late ConfettiController _confettiController;
   bool _confettiPlayed = false;
 
-  // Preguntas de prueba
-  final List<Question> _questions = [
+  List<String> _gruposDisponibles = [];
+  bool _cargandoGrupos = true;
+
+  // Preguntas de prueba (Backup)
+  List<Question> _questions = [
     Question("¿Cuál es la capital de Francia?", ["Madrid", "París", "Roma", "Berlín"], 1),
     Question("¿Cuánto es 2 + 2?", ["3", "4", "5", "6"], 1),
     Question("¿De qué color es el cielo despejado?", ["Verde", "Azul", "Rojo", "Amarillo"], 1),
@@ -47,12 +49,60 @@ class _ServerPageState extends State<ServerPage> {
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+    _cargarGrupos(); // Primero cargamos los grupos
+  }
+
+  void _cargarGrupos() async {
+    final snapshot = await _dbRef.child('banco_preguntas').get();
+    if (snapshot.exists) {
+      Map data = snapshot.value as Map;
+      setState(() {
+        _gruposDisponibles = data.keys.cast<String>().toList();
+        _cargandoGrupos = false;
+      });
+    } else {
+      setState(() {
+        _gruposDisponibles = ["Preguntas de Prueba"]; // Backup
+        _cargandoGrupos = false;
+      });
+    }
+  }
+
+  void _seleccionarGrupoYEmpezar(String grupo) async {
+    setState(() => _cargandoGrupos = true); // Mostramos cargador
+    
+    try {
+      if (grupo != "Preguntas de Prueba") {
+        final snapshot = await _dbRef.child('banco_preguntas').child(grupo).get();
+        if (snapshot.exists) {
+          List<Question> preguntasDescargadas = [];
+          Map data = snapshot.value as Map;
+          
+          data.forEach((key, value) {
+            // Parseo seguro para evitar cuelgues de Firebase
+            String texto = value['text'] ?? 'Pregunta sin texto';
+            List<String> opciones = value['options'] != null 
+                ? (value['options'] as List).map((e) => e.toString()).toList()
+                : ["A", "B", "C", "D"];
+            int correcta = value['correctIndex'] ?? 0;
+            
+            preguntasDescargadas.add(Question(texto, opciones, correcta));
+          });
+
+          if (preguntasDescargadas.isNotEmpty) {
+            _questions = preguntasDescargadas; 
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error al cargar preguntas: $e");
+    }
+    
     _createGame();
   }
 
   @override
   void dispose() {
-    _gameCodeController.dispose();
     _timer?.cancel();
     _answersSubscription?.cancel();
     _confettiController.dispose();
@@ -70,40 +120,17 @@ class _ServerPageState extends State<ServerPage> {
       setState(() {
         gameCode = newCode;
         isGameReady = true;
+        _cargandoGrupos = false; // Ocultamos el cargador
       });
-    }
-  }
-
-  void _joinGame() async {
-    String code = _gameCodeController.text.trim();
-    if (code.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Por favor, introduce un código de partida.")),
-      );
-      return;
-    }
-
-    final snapshot = await _dbRef.child('partidas').child(code).get();
-    if (snapshot.exists) {
-      if (mounted) {
-        setState(() {
-          gameCode = code;
-          isGameReady = true;
-        });
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("La partida no existe.")),
-      );
     }
   }
 
   void _startGame() async {
-    if (gameCode != null) {
+    if (gameCode.isNotEmpty) {
       setState(() {
         gameStarted = true;
       });
-      await _dbRef.child('partidas').child(gameCode!).update({
+      await _dbRef.child('partidas').child(gameCode).update({
         'status': 'playing',
       });
       _startQuestion();
@@ -114,7 +141,7 @@ class _ServerPageState extends State<ServerPage> {
     setState(() {
       isGameReady = false;
       gameStarted = false;
-      gameCode = null;
+      gameCode = '';
     });
   }
 
@@ -122,7 +149,7 @@ class _ServerPageState extends State<ServerPage> {
 
   void _startQuestion() async {
     _questionEnded = false;
-    _confettiPlayed = false; // Reset confederate flag for next run if needed
+    _confettiPlayed = false;
     setState(() {
       _timeLeft = 20;
     });
@@ -130,14 +157,14 @@ class _ServerPageState extends State<ServerPage> {
     Question q = _questions[_currentQuestionIndex];
     _questionStartTime = DateTime.now().millisecondsSinceEpoch;
 
-    await _dbRef.child('partidas').child(gameCode!).child('current_question').set({
+      await _dbRef.child('partidas').child(gameCode).child('current_question').set({
       'text': q.text,
       'options': q.options,
       'correctIndex': q.correctIndex,
       'status': 'showing',
     });
 
-    await _dbRef.child('partidas').child(gameCode!).child('current_answers').remove();
+    await _dbRef.child('partidas').child(gameCode).child('current_answers').remove();
 
     _timer?.cancel();
     _answersSubscription?.cancel();
@@ -154,10 +181,10 @@ class _ServerPageState extends State<ServerPage> {
       }
     });
 
-    _answersSubscription = _dbRef.child('partidas').child(gameCode!).child('current_answers').onValue.listen((event) async {
+    _answersSubscription = _dbRef.child('partidas').child(gameCode).child('current_answers').onValue.listen((event) async {
       if (event.snapshot.value != null) {
         int answersCount = (event.snapshot.value as Map).length;
-        final playersSnapshot = await _dbRef.child('partidas').child(gameCode!).child('players').get();
+        final playersSnapshot = await _dbRef.child('partidas').child(gameCode).child('players').get();
         int totalPlayers = 0;
         if (playersSnapshot.exists) {
           totalPlayers = (playersSnapshot.value as Map).length;
@@ -191,12 +218,12 @@ class _ServerPageState extends State<ServerPage> {
     if (_questionEnded) return;
     _questionEnded = true;
 
-    await _dbRef.child('partidas').child(gameCode!).child('current_question').update({
+    await _dbRef.child('partidas').child(gameCode).child('current_question').update({
       'status': 'finished',
     });
 
-    final playersSnapshot = await _dbRef.child('partidas').child(gameCode!).child('players').get();
-    final answersSnapshot = await _dbRef.child('partidas').child(gameCode!).child('current_answers').get();
+    final playersSnapshot = await _dbRef.child('partidas').child(gameCode).child('players').get();
+    final answersSnapshot = await _dbRef.child('partidas').child(gameCode).child('current_answers').get();
     
     Map answersMap = answersSnapshot.exists ? answersSnapshot.value as Map : {};
     int correctIndex = _questions[_currentQuestionIndex].correctIndex;
@@ -218,7 +245,7 @@ class _ServerPageState extends State<ServerPage> {
           }
         }
         int currentScore = playersMap[playerName]['score'] ?? 0;
-        await _dbRef.child('partidas').child(gameCode!).child('players').child(playerName).update({
+        await _dbRef.child('partidas').child(gameCode).child('players').child(playerName).update({
           'score': currentScore + pointsEarned,
           'lastRoundPoints': pointsEarned,
         });
@@ -231,7 +258,7 @@ class _ServerPageState extends State<ServerPage> {
   }
 
   void _showScoreboard() async {
-    await _dbRef.child('partidas').child(gameCode!).child('current_question').update({
+    await _dbRef.child('partidas').child(gameCode).child('current_question').update({
       'status': 'scoreboard',
     });
     setState(() {});
@@ -250,12 +277,47 @@ class _ServerPageState extends State<ServerPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (!isGameReady) {
-      return _buildGameSetup();
+    // 1. Cargando los grupos de Firebase
+    if (_cargandoGrupos) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF46178f), 
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
     }
+    
+    // 2. Pantalla para elegir el Quizz (antes de generar el PIN)
+    if (!isGameReady) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF46178f),
+        appBar: AppBar(
+          title: Text("Elige un Quizz", style: GoogleFonts.montserrat(color: Colors.white, fontWeight: FontWeight.bold)),
+          backgroundColor: Colors.transparent, 
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: ListView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: _gruposDisponibles.length,
+          itemBuilder: (context, index) {
+            return Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              margin: const EdgeInsets.only(bottom: 15),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                title: Text(_gruposDisponibles[index], style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, fontSize: 20)),
+                trailing: const Icon(Icons.play_arrow, color: Color(0xFF26890c), size: 30),
+                onTap: () => _seleccionarGrupoYEmpezar(_gruposDisponibles[index]),
+              ),
+            );
+          },
+        ),
+      );
+    }
+    
+    // 3. Ya en partida (jugando o viendo puntuaciones)
     if (gameStarted) {
       return StreamBuilder(
-        stream: _dbRef.child('partidas').child(gameCode!).child('current_question').child('status').onValue,
+        stream: _dbRef.child('partidas').child(gameCode).child('current_question').child('status').onValue,
         builder: (context, snapshot) {
           String status = "showing";
           if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
@@ -268,65 +330,24 @@ class _ServerPageState extends State<ServerPage> {
         }
       );
     }
+    
+    // 4. Lobby (Esperando jugadores)
     return _buildLobby();
-  }
-
-  Widget _buildGameSetup() {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Configurar Partida")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text("CREAR NUEVA PARTIDA"),
-              onPressed: _createGame,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-              ),
-            ),
-            const SizedBox(height: 30),
-            const Text("O", style: TextStyle(fontSize: 20)),
-            const SizedBox(height: 30),
-            TextField(
-              controller: _gameCodeController,
-              decoration: const InputDecoration(
-                labelText: "Introduce el código de la partida",
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.login),
-              label: const Text("UNIRSE A PARTIDA EXISTENTE"),
-              onPressed: _joinGame,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildLobby() {
     return Scaffold(
-      backgroundColor: const Color(0xFF46178f), // Kahoot Purple 
+      backgroundColor: const Color(0xFF46178f), 
       appBar: AppBar(
-        title: Text("Pin de la sala: $gameCode", style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.transparent, 
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
           const SizedBox(height: 40),
           Text(
-            "Únete en www.kahoot.it\no con la app de Kahoot!",
+            "Kahoot!",
             textAlign: TextAlign.center,
             style: GoogleFonts.montserrat(
               fontSize: 24,

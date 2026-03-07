@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'server_page.dart';
 import 'firebase_options.dart';
 import 'client_page.dart';
+import 'create_question_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,16 +55,23 @@ class HomePage extends StatelessWidget {
               _buildMenuButton(
                 context, 
                 "Crear Partida (Profesor)", 
-                const Color(0xFF1368ce), // True Blue
+                const Color(0xFF1368ce),
                 () => Navigator.push(context, _createRoute(const ServerPage(), const Offset(0.0, 1.0)))
               ),
               const SizedBox(height: 20),
               _buildMenuButton(
                 context, 
                 "Unirse (Alumno)", 
-                const Color(0xFFe21b3c), // Kahoot Red
-                () => Navigator.push(context, _createRoute(const ClientPage(), const Offset(0.0, 1.0)))
+                const Color(0xFFe21b3c), 
+                () => Navigator.push(context, _createRoute(const ClientPage(), const Offset(0.0, 1.0))) 
               ),
+              const SizedBox(height: 20),
+              _buildMenuButton(
+                context, 
+                "Crear Preguntas", 
+                const Color(0xFF26890c), 
+                () => Navigator.push(context, _createRoute(const CreateQuestionPage(), const Offset(0.0, 1.0))) 
+              ),            
             ],
           ),
         ),
