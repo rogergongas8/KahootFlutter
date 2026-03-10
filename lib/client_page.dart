@@ -47,7 +47,7 @@ class _ClientPageState extends State<ClientPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF46178f), // Kahoot Purple
+      backgroundColor: const Color(0xFF46178f),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

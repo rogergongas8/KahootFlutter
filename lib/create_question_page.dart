@@ -14,7 +14,7 @@ class _CreateQuestionPageState extends State<CreateQuestionPage> {
   final List<TextEditingController> _respuestasControllers = List.generate(4, (_) => TextEditingController());
   final _dbRef = FirebaseDatabase.instance.ref();
   final _grupoController = TextEditingController();
-  int _correctIndex = 0; // Por defecto la primera es la correcta
+  int _correctIndex = 0;
 
 
 
